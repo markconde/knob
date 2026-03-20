@@ -35,8 +35,21 @@ actor WhisperInference {
         return WhisperInference(context: ctx)
     }
 
+    private static func loadVocab() -> String? {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let vocabPath = appSupport.appendingPathComponent("Knob/vocab.txt").path
+        guard let contents = try? String(contentsOfFile: vocabPath, encoding: .utf8) else {
+            return nil
+        }
+        let words = contents.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return words.isEmpty ? nil : words.joined(separator: ", ")
+    }
+
     func transcribe(samples: [Float]) throws -> String {
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
+        let vocab = Self.loadVocab()
 
         let result: Int32 = "en".withCString { lang in
             params.n_threads        = 4
@@ -50,8 +63,17 @@ actor WhisperInference {
             params.print_progress   = false
             params.print_timestamps = false
 
-            return samples.withUnsafeBufferPointer { buf in
-                whisper_full(context, params, buf.baseAddress, Int32(samples.count))
+            if let vocab {
+                return vocab.withCString { prompt in
+                    params.initial_prompt = prompt
+                    return samples.withUnsafeBufferPointer { buf in
+                        whisper_full(context, params, buf.baseAddress, Int32(samples.count))
+                    }
+                }
+            } else {
+                return samples.withUnsafeBufferPointer { buf in
+                    whisper_full(context, params, buf.baseAddress, Int32(samples.count))
+                }
             }
         }
 
