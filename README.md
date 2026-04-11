@@ -74,6 +74,10 @@ project.yml          # XcodeGen spec (source of truth)
 - < 3s end-to-end for 5s of speech
 - < 200 MB RAM idle, < 1 GB during inference
 
+## TODO
+
+- **Adaptive silence threshold.** The incremental transcription autosave splits audio at silence windows using a fixed absolute RMS threshold (0.01). In noisy environments (TV, fan, café), the noise floor sits above that threshold and no chunks are emitted — the app falls back to a single final paste. Upgrade the detector to a relative/adaptive threshold (e.g. split at windows significantly quieter than the surrounding audio's global RMS) so it self-calibrates to the ambient noise level.
+
 ## License
 
 MIT
