@@ -62,6 +62,22 @@ final class AudioCapture {
         }
     }
 
+    /// Attempts to drain a silence-bounded chunk from the live buffer without
+    /// stopping recording. Returns nil if fewer than `minSamples` have been
+    /// captured or no silence has been detected yet.
+    func tryDrainChunk(minSamples: Int = 80_000) -> [Float]? {
+        guard let buf = sharedBuffer else { return nil }
+        guard buf.count >= minSamples else { return nil }
+        // Start looking for silence a bit before the minimum so the split
+        // point can land near `minSamples` if a pause happens right there.
+        let windowSamples = 4800
+        let scanStart = max(0, minSamples - windowSamples)
+        return buf.findAndDrainSilenceSplit(
+            minIndex: scanStart,
+            windowSamples: windowSamples
+        )
+    }
+
     func stopRecording() -> [Float]? {
         autoStopTask?.cancel()
         autoStopTask = nil
@@ -101,5 +117,61 @@ private final class SharedBuffer: @unchecked Sendable {
         samples = []
         lock.unlock()
         return result
+    }
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return samples.count
+    }
+
+    /// Finds the first sustained silence window starting at or after `minIndex`
+    /// and drains the buffer up to the middle of that window. Returns the
+    /// drained prefix, or nil if no silence window exists.
+    ///
+    /// Silence = a window of `windowSamples` consecutive samples whose RMS is
+    /// below `rmsThreshold`. Splitting at the middle of the silence keeps
+    /// safety margin on both sides so we never cut mid-word.
+    func findAndDrainSilenceSplit(
+        minIndex: Int,
+        windowSamples: Int = 4800,
+        rmsThreshold: Float = 0.01
+    ) -> [Float]? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let start = max(0, minIndex)
+        guard samples.count >= start + windowSamples else { return nil }
+
+        let thresholdSq = rmsThreshold * rmsThreshold * Float(windowSamples)
+
+        // Sliding sum-of-squares over the window. Initialize with the first
+        // window's sum, then slide one sample at a time.
+        var sumSq: Float = 0
+        for i in start..<(start + windowSamples) {
+            let s = samples[i]
+            sumSq += s * s
+        }
+
+        var windowStart = start
+        let lastStart = samples.count - windowSamples
+        while windowStart <= lastStart {
+            if sumSq < thresholdSq {
+                // Split at the middle of the silent window.
+                let splitIndex = windowStart + windowSamples / 2
+                let prefix = Array(samples[0..<splitIndex])
+                samples.removeFirst(splitIndex)
+                return prefix
+            }
+            // Slide: subtract outgoing sample, add incoming sample.
+            let next = windowStart + windowSamples
+            if next >= samples.count { break }
+            let out = samples[windowStart]
+            let inc = samples[next]
+            sumSq += inc * inc - out * out
+            windowStart += 1
+        }
+
+        return nil
     }
 }
