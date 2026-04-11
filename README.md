@@ -29,10 +29,12 @@ xcodebuild -project Knob.xcodeproj -scheme Knob -configuration Debug -arch arm64
 
 ### Download the model
 
-Knob uses the `ggml-small.en.bin` whisper model (~466 MB). Download it from [Hugging Face](https://huggingface.co/ggerganov/whisper.cpp/tree/main) and place it in:
+Knob uses the `ggml-small.en.bin` whisper model (~466 MB):
 
-```
-~/Library/Application Support/Knob/models/ggml-small.en.bin
+```bash
+mkdir -p ~/Library/Application\ Support/Knob/models
+curl -L -o ~/Library/Application\ Support/Knob/models/ggml-small.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
 ```
 
 ## How It Works
@@ -73,6 +75,14 @@ project.yml          # XcodeGen spec (source of truth)
 - < 2s inference for 10s of audio
 - < 3s end-to-end for 5s of speech
 - < 200 MB RAM idle, < 1 GB during inference
+
+## Troubleshooting
+
+**Build fails with missing `whisper.h`** — run `bash Knob/Scripts/build-whisper.sh` manually before the Xcode build.
+
+**Linker errors (undefined symbols)** — the set of `.a` files whisper.cpp emits can change between versions. Check `vendor/whisper.cpp/build/install/lib/` and update `OTHER_LDFLAGS` in `project.yml` to match, then rerun `xcodegen generate`.
+
+**Accessibility permission not taking effect** — make sure you're granting permission to the exact binary you're running (during development that's the DerivedData build, not a copy). Quit and relaunch Knob after granting.
 
 ## TODO
 
