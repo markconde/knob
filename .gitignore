@@ -24,3 +24,4 @@ vendor/whisper.cpp/build/
 
 # Claude
 .claude/
+CLAUDE.md
