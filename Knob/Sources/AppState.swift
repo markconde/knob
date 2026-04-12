@@ -34,10 +34,11 @@ final class AppState {
     }
 
     private func loadModel() async {
-        logger.info("Loading whisper model...")
+        let config = Config.load()
+        logger.info("Loading whisper model: \(config.model)")
         do {
             whisper = try await Task.detached {
-                try WhisperInference.load()
+                try WhisperInference.load(config: config)
             }.value
             logger.info("Model loaded successfully.")
             status = .ready

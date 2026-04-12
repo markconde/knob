@@ -8,18 +8,19 @@ enum WhisperError: Error {
 
 actor WhisperInference {
     private nonisolated(unsafe) let context: OpaquePointer
+    private let language: String
 
-    private init(context: OpaquePointer) {
+    private init(context: OpaquePointer, language: String) {
         self.context = context
+        self.language = language
     }
 
     deinit {
         whisper_free(context)
     }
 
-    static func load() throws -> WhisperInference {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let modelPath = appSupport.appendingPathComponent("Knob/models/ggml-small.en.bin").path
+    static func load(config: Config) throws -> WhisperInference {
+        let modelPath = config.modelPath
 
         guard FileManager.default.fileExists(atPath: modelPath) else {
             throw WhisperError.modelNotFound(modelPath)
@@ -32,7 +33,7 @@ actor WhisperInference {
             throw WhisperError.failedToInitialize
         }
 
-        return WhisperInference(context: ctx)
+        return WhisperInference(context: ctx, language: config.language)
     }
 
     private static func loadVocab() -> String? {
@@ -51,7 +52,7 @@ actor WhisperInference {
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
         let vocab = Self.loadVocab()
 
-        let result: Int32 = "en".withCString { lang in
+        let result: Int32 = language.withCString { lang in
             params.n_threads        = 4
             params.no_context       = true
             params.single_segment   = true
