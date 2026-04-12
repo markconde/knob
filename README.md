@@ -27,15 +27,49 @@ bash Knob/Scripts/build-whisper.sh
 xcodebuild -project Knob.xcodeproj -scheme Knob -configuration Debug -arch arm64 build
 ```
 
-### Download the model
+### Download a whisper model
 
-Knob uses the `ggml-small.en.bin` whisper model (~466 MB):
+Knob uses [whisper.cpp GGML models](https://huggingface.co/ggerganov/whisper.cpp). The default is `small.en` — a good balance of speed and accuracy for English dictation.
 
 ```bash
 mkdir -p ~/Library/Application\ Support/Knob/models
 curl -L -o ~/Library/Application\ Support/Knob/models/ggml-small.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin
 ```
+
+#### Available models
+
+All models are hosted at [huggingface.co/ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp/tree/main). English-only (`.en`) models are faster and more accurate for English. Multilingual models support [99 languages](https://github.com/openai/whisper#available-models-and-languages).
+
+| Model | English-only | Multilingual | Size | Relative speed | Notes |
+|-------|-------------|-------------|------|---------------|-------|
+| tiny | `ggml-tiny.en.bin` | `ggml-tiny.bin` | ~75 MB | Fastest | Low accuracy, good for testing |
+| base | `ggml-base.en.bin` | `ggml-base.bin` | ~142 MB | Fast | Decent for short phrases |
+| small | `ggml-small.en.bin` | `ggml-small.bin` | ~466 MB | Moderate | **Recommended.** Best speed/accuracy tradeoff |
+| medium | `ggml-medium.en.bin` | `ggml-medium.bin` | ~1.5 GB | Slow | Better accuracy, noticeably slower |
+| large-v3-turbo | — | `ggml-large-v3-turbo.bin` | ~1.6 GB | Slow | Best multilingual accuracy with turbo speed |
+
+To download a different model, replace the filename in the curl command:
+
+```bash
+# Example: download the tiny.en model for faster but less accurate transcription
+curl -L -o ~/Library/Application\ Support/Knob/models/ggml-tiny.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+```
+
+#### Changing the active model
+
+Knob currently loads `ggml-small.en.bin` by default. To use a different model, you'll need to rename your downloaded model file:
+
+```bash
+cd ~/Library/Application\ Support/Knob/models
+
+# Example: switch to the medium.en model
+mv ggml-small.en.bin ggml-small.en.bin.bak    # backup current model
+mv ggml-medium.en.bin ggml-small.en.bin        # rename to expected filename
+```
+
+> **Note:** A future version will add model selection in the app's settings. For now, the filename must be `ggml-small.en.bin`.
 
 ## How It Works
 
@@ -55,6 +89,21 @@ Knob requires two macOS permissions:
 | **Microphone** | Audio recording |
 
 On first launch the app will prompt you to grant these in System Settings.
+
+## Custom Vocabulary
+
+You can improve recognition of names, jargon, and uncommon words by adding them to a vocabulary file:
+
+```bash
+mkdir -p ~/Library/Application\ Support/Knob
+cat > ~/Library/Application\ Support/Knob/vocab.txt << 'EOF'
+Kubernetes
+PostgreSQL
+Anthropic
+EOF
+```
+
+One word or phrase per line. These are passed as hints to whisper's `initial_prompt` parameter, which biases the model toward recognizing these terms. Restart Knob after editing — vocab is loaded fresh for each transcription.
 
 ## Project Structure
 
