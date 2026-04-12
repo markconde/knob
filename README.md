@@ -57,19 +57,38 @@ curl -L -o ~/Library/Application\ Support/Knob/models/ggml-tiny.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
 ```
 
-#### Changing the active model
+#### Configuration
 
-Knob currently loads `ggml-small.en.bin` by default. To use a different model, you'll need to rename your downloaded model file:
+Knob reads its settings from `~/Library/Application Support/Knob/config.json`. The file is created automatically on first launch with these defaults:
 
-```bash
-cd ~/Library/Application\ Support/Knob/models
-
-# Example: switch to the medium.en model
-mv ggml-small.en.bin ggml-small.en.bin.bak    # backup current model
-mv ggml-medium.en.bin ggml-small.en.bin        # rename to expected filename
+```json
+{
+  "language" : "en",
+  "model" : "ggml-small.en.bin"
+}
 ```
 
-> **Note:** A future version will add model selection in the app's settings. For now, the filename must be `ggml-small.en.bin`.
+To use a different model, download it to the models directory and update `config.json`:
+
+```bash
+# 1. Download the model you want
+curl -L -o ~/Library/Application\ Support/Knob/models/ggml-medium.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin
+
+# 2. Update config.json to point to it
+cat > ~/Library/Application\ Support/Knob/config.json << 'EOF'
+{
+  "model": "ggml-medium.en.bin",
+  "language": "en"
+}
+EOF
+```
+
+Restart Knob after changing the config.
+
+**`model`** — filename of the GGML model in the `models/` directory. Can be any model from the table above.
+
+**`language`** — language code for transcription. Use `"en"` for English-only models. For multilingual models, use a [language code](https://github.com/openai/whisper#available-models-and-languages) like `"es"`, `"fr"`, `"de"`, `"ja"`, etc. Set to `"auto"` for automatic language detection.
 
 ## How It Works
 
